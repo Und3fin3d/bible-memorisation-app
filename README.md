@@ -4,9 +4,9 @@ A browser app for saving Bible verses and reviewing them with spaced repetition.
 
 ## Demo
 
-This walkthrough shows the tutorial, three review modes, collections, verse import, and progress.
+Watch a 98-second tour of the tutorial, review modes, collections, verse import, and progress.
 
-https://github.com/user-attachments/assets/136f41f7-afd4-4ac1-8662-90860b2926d6
+https://github.com/user-attachments/assets/b6abc4e5-4a78-4e9c-9d80-160cd0ad90e7
 
 ## Run locally
 
