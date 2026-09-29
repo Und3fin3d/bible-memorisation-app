@@ -1,12 +1,14 @@
 # Bible Memory
 
-Add a verse or import a passage, then practise it with flashcards, typing or first-letter prompts. The app schedules reviews with SM-2. You can group verses into collections, and your progress stays in this browser.
+Add a verse or import a passage, then choose what to study. You can review by revealing a flashcard, typing the verse or entering the first letter of each word. Rate how well you remembered the verse. The app uses that result to schedule the next review.
+
+Your verses, collections and progress stay in this browser.
 
 ## Demo
 
 https://github.com/user-attachments/assets/e90b6c87-2426-47dd-a5de-488fed064c76
 
-## Run it locally
+## Run locally
 
 Install Node.js, then run:
 
@@ -15,9 +17,9 @@ npm install
 npm run dev
 ```
 
-Open the address shown in the terminal.
+Open the address printed by Vite.
 
-## Check it
+## Checks
 
 ```bash
 npm run lint
