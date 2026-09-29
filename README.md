@@ -1,25 +1,23 @@
-# Bible Memorisation App
+# Bible Memory
 
-A browser app for saving Bible verses and reviewing them with spaced repetition.
+Add a verse or import a passage, then practise it with flashcards, typing or first-letter prompts. The app schedules reviews with SM-2. You can group verses into collections, and your progress stays in this browser.
 
 ## Demo
 
-Watch a 98-second tour of the tutorial, review modes, collections, verse import, and progress.
-
 https://github.com/user-attachments/assets/b6abc4e5-4a78-4e9c-9d80-160cd0ad90e7
 
-## Run locally
+## Run it locally
 
-Install Node.js and npm, then run:
+Install Node.js, then run:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local address shown by Vite. The app saves verses and review progress in your browser.
+Open the address shown in the terminal.
 
-## Check the project
+## Check it
 
 ```bash
 npm run lint
