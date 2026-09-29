@@ -4,7 +4,7 @@ Add a verse or import a passage, then practise it with flashcards, typing or fir
 
 ## Demo
 
-https://github.com/user-attachments/assets/b6abc4e5-4a78-4e9c-9d80-160cd0ad90e7
+https://github.com/user-attachments/assets/e90b6c87-2426-47dd-a5de-488fed064c76
 
 ## Run it locally
 
