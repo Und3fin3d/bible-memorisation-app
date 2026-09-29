@@ -1,8 +1,9 @@
-import { recordReview } from "./storage";
 import type { StreakData, CustomGroup, ReviewSelection } from "./storage";
 import type { VerseGroup } from "./verseGroups";
 
 export type ReviewMode = "flashcard" | "typing" | "first-letter";
+
+export type QualityRating = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface Card {
   id: string;
@@ -18,44 +19,23 @@ export interface Card {
   modesUsed: ReviewMode[];
 }
 
-export type QualityRating = 0 | 1 | 2 | 3 | 4 | 5;
+export const DAY_MS = 86400000;
 
-export interface ReviewUpdate {
-  ef: number;
-  interval: number;
-  repetitions: number;
-  nextReview: Date;
-  lastReviewed: Date;
-}
+export const isoDay = (date: Date) => date.toISOString().split("T")[0];
 
-export function calculateNextReview(card: Card, quality: QualityRating): ReviewUpdate {
+export const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
+
+export const isDue = (card: Card, now = new Date()) => card.nextReview <= now;
+
+function calculateNextReview(card: Card, quality: QualityRating) {
   const ef = Math.max(1.3, card.ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
-  let repetitions = 0;
-  let interval = 0;
   const now = new Date();
-  let nextReview = now;
-  if (quality >= 3) {
-    repetitions = card.repetitions + 1;
-    if (repetitions === 1) interval = 1;
-    else if (repetitions === 2) interval = 6;
-    else interval = Math.round(card.interval * ef);
-    nextReview = new Date(now.getTime() + interval * 86400000);
-  }
-
-  return {
-    ef,
-    interval,
-    repetitions,
-    nextReview,
-    lastReviewed: now,
-  };
+  if (quality < 3) return { ef, interval: 0, repetitions: 0, nextReview: now, lastReviewed: now };
+  const interval = [1, 6][card.repetitions] ?? Math.round(card.interval * ef);
+  return { ef, interval, repetitions: card.repetitions + 1, nextReview: new Date(now.getTime() + interval * DAY_MS), lastReviewed: now };
 }
 
-export function createCard(
-  reference: string,
-  text: string,
-  translation: string = "NIV"
-): Card {
+export function createCard(reference: string, text: string, translation = "NIV"): Card {
   const now = new Date();
   return {
     id: crypto.randomUUID(),
@@ -74,31 +54,19 @@ export function createCard(
 
 export function getDueCards(cards: Card[]): Card[] {
   const now = new Date();
-  return cards
-    .filter((card) => new Date(card.nextReview) <= now)
-    .sort((a, b) => new Date(a.nextReview).getTime() - new Date(b.nextReview).getTime());
+  return cards.filter((card) => isDue(card, now)).sort((a, b) => a.nextReview.getTime() - b.nextReview.getTime());
 }
 
-export interface ReviewStats {
-  total: number;
-  due: number;
-  mastered: number;
-  learning: number;
-  new: number;
-}
-
-export function getReviewStats(cards: Card[]): ReviewStats {
+export function getReviewStats(cards: Card[]) {
   const now = new Date();
-  const due = cards.filter((c) => new Date(c.nextReview) <= now).length;
-  const mastered = cards.filter((c) => c.repetitions >= 5).length;
-  const learning = cards.filter(
-    (c) => c.repetitions < 5 && (c.repetitions > 0 || c.lastReviewed !== null)
-  ).length;
-  const newCards = cards.filter(
-    (c) => c.repetitions === 0 && !c.lastReviewed
-  ).length;
-
-  return { total: cards.length, due, mastered, learning, new: newCards };
+  const count = (predicate: (card: Card) => boolean) => cards.filter(predicate).length;
+  return {
+    total: cards.length,
+    due: count((c) => isDue(c, now)),
+    mastered: count((c) => c.repetitions >= 5),
+    learning: count((c) => c.repetitions < 5 && (c.repetitions > 0 || c.lastReviewed !== null)),
+    new: count((c) => c.repetitions === 0 && !c.lastReviewed),
+  };
 }
 
 export function getNextIntervalText(card: Card, quality: QualityRating): string {
@@ -111,19 +79,14 @@ export function getNextIntervalText(card: Card, quality: QualityRating): string 
   return `${(days / 365).toFixed(1)} years`;
 }
 
-export function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").trim();
-}
+const normaliseText = (text: string) => text.toLowerCase().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").trim();
 
 export function calculateAccuracy(input: string, expected: string): number {
-  const normalizedInput = normalizeText(input);
-  const normalizedExpected = normalizeText(expected);
-
-  if (normalizedExpected.length === 0) return 0;
-  const distance = levenshteinDistance(normalizedInput, normalizedExpected);
-  const maxLength = Math.max(normalizedInput.length, normalizedExpected.length);
-
-  return Math.max(0, Math.round(((maxLength - distance) / maxLength) * 100));
+  const a = normaliseText(input);
+  const b = normaliseText(expected);
+  if (b.length === 0) return 0;
+  const maxLength = Math.max(a.length, b.length);
+  return Math.max(0, Math.round(((maxLength - levenshteinDistance(a, b)) / maxLength) * 100));
 }
 
 function levenshteinDistance(a: string, b: string): number {
@@ -138,26 +101,25 @@ function levenshteinDistance(a: string, b: string): number {
       );
     }
   }
-
   return matrix[b.length][a.length];
 }
 
-export interface ReviewOutcome {
-  card: Card;
-  streak: StreakData;
-  celebration: string | null;
+function adjustQuality(quality: QualityRating, mode: ReviewMode, accuracy?: number): QualityRating {
+  if (mode === "flashcard" || accuracy === undefined) return quality;
+  if (accuracy < 50) return 1;
+  return accuracy < 80 && quality > 3 ? 3 : quality;
 }
 
-export function adjustQuality(
-  quality: QualityRating,
-  mode: ReviewMode,
-  accuracy?: number
-): QualityRating {
-  if ((mode === "typing" || mode === "first-letter") && accuracy !== undefined) {
-    if (accuracy < 50) return 1;
-    if (accuracy < 80 && quality > 3) return 3;
-  }
-  return quality;
+function recordReview(streak: StreakData): StreakData {
+  const today = isoDay(new Date());
+  if (streak.lastReviewDate === today) return { ...streak, totalReviews: streak.totalReviews + 1 };
+  const currentStreak = streak.lastReviewDate === isoDay(daysAgo(1)) ? streak.currentStreak + 1 : 1;
+  return {
+    currentStreak,
+    longestStreak: Math.max(streak.longestStreak, currentStreak),
+    lastReviewDate: today,
+    totalReviews: streak.totalReviews + 1,
+  };
 }
 
 export function applyReview(
@@ -166,22 +128,14 @@ export function applyReview(
   quality: QualityRating,
   accuracy: number | undefined,
   streak: StreakData
-): ReviewOutcome {
+) {
   const adjusted = adjustQuality(quality, mode, accuracy);
   const updates = calculateNextReview(card, adjusted);
-
   let celebration: string | null = null;
-  if (updates.repetitions === 5) {
-    celebration = `${card.reference} mastered!`;
-  } else if (adjusted === 5 && updates.repetitions > 5) {
-    celebration = "Perfect recall!";
-  }
-
-  return {
-    card: { ...card, ...updates, modesUsed: card.modesUsed.includes(mode) ? card.modesUsed : [...card.modesUsed, mode] },
-    streak: recordReview(streak),
-    celebration,
-  };
+  if (updates.repetitions === 5) celebration = `${card.reference} mastered!`;
+  else if (adjusted === 5 && updates.repetitions > 5) celebration = "Perfect recall!";
+  const modesUsed = card.modesUsed.includes(mode) ? card.modesUsed : [...card.modesUsed, mode];
+  return { card: { ...card, ...updates, modesUsed }, streak: recordReview(streak), celebration };
 }
 
 export function resolveSelection(
@@ -190,18 +144,14 @@ export function resolveSelection(
   customGroups: CustomGroup[],
   sequentialGroups: VerseGroup[]
 ): Card[] {
-  if (!selection || selection.type === "all") return cards;
-
-  let ids: string[] | undefined;
-  if (selection.type === "custom-group") {
-    ids = customGroups.find((g) => g.id === selection.id)?.cardIds;
-  } else if (selection.type === "sequential-group") {
-    ids = sequentialGroups.find((g) => g.reference === selection.id)?.cards.map((c) => c.id);
-  } else if (selection.type === "ad-hoc") {
-    ids = selection.cardIds;
-  }
+  if (!selection) return cards;
+  const ids = {
+    all: undefined,
+    "custom-group": customGroups.find((g) => g.id === selection.id)?.cardIds,
+    "sequential-group": sequentialGroups.find((g) => g.reference === selection.id)?.cards.map((c) => c.id),
+    "ad-hoc": selection.cardIds,
+  }[selection.type];
   if (!ids) return cards;
-
   const idSet = new Set(ids);
   return cards.filter((c) => idSet.has(c.id));
 }

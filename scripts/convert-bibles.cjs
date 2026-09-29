@@ -13,52 +13,37 @@ const FILE_TO_TRANSLATION = {
   "EnglishNLTBible.xml": "NLT",
 };
 
-function decodeEntities(str) {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
+const NAMED_ENTITIES = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'" };
+
+const decodeEntities = (str) =>
+  Object.entries(NAMED_ENTITIES)
+    .reduce((text, [entity, char]) => text.replaceAll(entity, char), str)
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
     .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-}
+
+const parseLevels = (text, [tag, ...inner]) =>
+  Object.fromEntries(
+    [...text.matchAll(new RegExp(`<${tag} number="(\\d+)">([\\s\\S]*?)</${tag}>`, "g"))].map(([, number, body]) => [
+      number,
+      inner.length ? parseLevels(body, inner) : decodeEntities(body.trim()),
+    ])
+  );
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 for (const [filename, translation] of Object.entries(FILE_TO_TRANSLATION)) {
   const xmlPath = path.join(BIBLES_DIR, filename);
-
   if (!fs.existsSync(xmlPath)) {
     console.warn(`  ⚠  ${filename} not found, skipping`);
     continue;
   }
 
   process.stdout.write(`Converting ${filename} → ${translation}.json ...`);
-
-  const content = fs.readFileSync(xmlPath, "utf-8");
-  const bible = {};
-
-  for (const [, bookNum, bookText] of content.matchAll(/<book number="(\d+)">([\s\S]*?)<\/book>/g)) {
-    const book = bible[bookNum] = {};
-    for (const [, chapterNum, chapterText] of bookText.matchAll(
-      /<chapter number="(\d+)">([\s\S]*?)<\/chapter>/g
-    )) {
-      const chapter = book[chapterNum] = {};
-      for (const [, verseNum, verseText] of chapterText.matchAll(
-        /<verse number="(\d+)">([\s\S]*?)<\/verse>/g
-      )) {
-        chapter[verseNum] = decodeEntities(verseText.trim());
-      }
-    }
-  }
-
-  const bookCount = Object.keys(bible).length;
+  const bible = parseLevels(fs.readFileSync(xmlPath, "utf-8"), ["book", "chapter", "verse"]);
   const outPath = path.join(OUTPUT_DIR, `${translation}.json`);
   fs.writeFileSync(outPath, JSON.stringify(bible));
-
   const kb = Math.round(fs.statSync(outPath).size / 1024);
-  console.log(` ✓  (${bookCount} books, ${kb} KB)`);
+  console.log(` ✓  (${Object.keys(bible).length} books, ${kb} KB)`);
 }
 
 console.log("\nAll done! Files are in public/bibles/");

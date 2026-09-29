@@ -1,129 +1,129 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Popover, ToggleGroup } from "radix-ui";
+import { Command } from "cmdk";
 import { createCard, type Card } from "../lib/sm2";
-import {
-  BIBLE_BOOKS,
-  TRANSLATIONS,
-  parseVerseRange,
-  type BibleBook,
-  type TranslationId,
-} from "../lib/bibleData";
+import { BIBLE_BOOKS, TRANSLATIONS, parseVerseRange, type BibleBook, type TranslationId } from "../lib/bibleData";
 import { lookupSelection, preloadTranslation, type LookupResult } from "../lib/bibleLocal";
-import { BookPlus, X, AlertCircle, Search, Loader2, Check, BookOpen } from "lucide-react";
+import { BookPlus, X, AlertCircle, Search, Loader2, Check, ChevronsUpDown } from "lucide-react";
 
-interface AddVerseFormProps {
-  onAdd: (cards: Card[]) => void;
-  onCancel?: () => void;
+const inputClass = "w-full px-4 py-2.5 bg-input border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all text-foreground";
+const hintClass = "text-xs font-normal text-muted-foreground";
+const slide = (dx: number) => ({ initial: { opacity: 0, x: dx }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -dx } });
+
+interface FieldProps {
+  label: React.ReactNode;
+  htmlFor?: string;
+  id?: string;
+  children: React.ReactNode;
 }
 
-type FormState = "input" | "confirm" | "manual";
+function Field({ label, htmlFor, id, children }: FieldProps) {
+  return (
+    <div>
+      <label id={id} htmlFor={htmlFor} className="block text-sm font-medium mb-1.5 text-foreground">{label}</label>
+      {children}
+    </div>
+  );
+}
 
 interface BookSelectorProps {
   selectedBook?: BibleBook;
-  onSelect: (bookId: string) => void;
+  onSelectBook: (bookId: string) => void;
 }
 
-function BookSelector({ selectedBook, onSelect }: BookSelectorProps) {
-  const [search, setSearch] = useState("");
+function BookSelector({ selectedBook, onSelectBook }: BookSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const query = search.toLowerCase();
-  const books = query
-    ? BIBLE_BOOKS.filter(
-        (book) =>
-          book.name.toLowerCase().includes(query) || book.id.toLowerCase().includes(query)
-      )
-    : BIBLE_BOOKS;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const close = () => setIsOpen(false);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [isOpen]);
-
-  const selectBook = (bookId: string) => {
-    onSelect(bookId);
-    setSearch("");
-    setIsOpen(false);
-  };
-
   return (
-    <div className="relative">
-      <label className="block text-sm font-medium mb-1.5 text-foreground">Book</label>
-      <div className="relative" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={`w-full px-4 py-2.5 bg-background border border-border rounded-xl text-left focus:ring-2 focus:ring-ring outline-none transition-all flex items-center justify-between ${
-            selectedBook ? "text-foreground" : "text-muted-foreground"
-          }`}
+    <Field label="Book" id="book-label" htmlFor="book-selector">
+      <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
+        <Popover.Trigger
+          id="book-selector"
+          aria-labelledby="book-label book-value"
+          className={`w-full px-4 py-2.5 bg-input border border-border rounded-xl text-left outline-none transition-colors hover:border-foreground/30 flex items-center justify-between ${selectedBook ? "text-foreground" : "text-muted-foreground"}`}
         >
-          <span>{selectedBook?.name ?? "Select a book..."}</span>
-          <BookOpen className="w-4 h-4 text-muted-foreground" />
-        </button>
-
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute z-20 w-full mt-1 bg-popover border border-border rounded-xl shadow-lg max-h-60 overflow-auto"
+          <span id="book-value">{selectedBook?.name ?? "Select a book..."}</span>
+          <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="start"
+            sideOffset={4}
+            className="z-50 w-(--radix-popover-trigger-width) rounded-xl border border-border bg-popover text-popover-foreground overlay-shadow outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-1"
           >
-            <div className="p-2 sticky top-0 bg-popover border-b border-border">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search books..."
-                className="w-full px-3 py-1.5 bg-input border border-border rounded-xl text-sm focus:ring-2 focus:ring-ring outline-none"
-                autoFocus
-              />
-            </div>
-            <div className="py-1">
-              {books.map((book) => (
-                <button
-                  key={book.id}
-                  type="button"
-                  onClick={() => selectBook(book.id)}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-muted transition-colors ${
-                    selectedBook?.id === book.id ? "bg-muted" : ""
-                  }`}
-                >
-                  <span className="font-medium text-foreground">{book.name}</span>
-                  <span className="text-xs ml-2 text-muted-foreground">
-                    {book.testament === "old" ? "OT" : "NT"} · {book.chapters} ch
-                  </span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </div>
-    </div>
+            <Command className="flex flex-col overflow-hidden rounded-xl">
+              <div className="flex items-center gap-2 border-b border-border px-3">
+                <Search className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <Command.Input placeholder="Search books..." aria-label="Search books" className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+              </div>
+              <Command.List className="max-h-64 overflow-y-auto overscroll-contain p-1">
+                <Command.Empty className="py-6 text-center text-sm text-muted-foreground">No book found</Command.Empty>
+                {BIBLE_BOOKS.map((book) => (
+                  <Command.Item
+                    key={book.id}
+                    value={book.id}
+                    keywords={[book.name]}
+                    onSelect={() => {
+                      onSelectBook(book.id);
+                      setIsOpen(false);
+                    }}
+                    className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none data-[selected=true]:bg-muted"
+                  >
+                    <span className="font-medium text-foreground">{book.name}</span>
+                    <span className="text-xs text-muted-foreground">{book.testament === "old" ? "OT" : "NT"} · {book.chapters} ch</span>
+                    {selectedBook?.id === book.id && <Check className="w-4 h-4 ml-auto text-foreground" />}
+                  </Command.Item>
+                ))}
+              </Command.List>
+            </Command>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    </Field>
   );
 }
 
 interface TranslationSelectorProps {
   translation: TranslationId;
-  onSelect: (translation: TranslationId) => void;
+  onSelectTranslation: (translation: TranslationId) => void;
 }
 
-function TranslationSelector({ translation, onSelect }: TranslationSelectorProps) {
+function TranslationSelector({ translation, onSelectTranslation }: TranslationSelectorProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <ToggleGroup.Root
+      type="single"
+      aria-label="Translation"
+      className="grid grid-cols-6 w-full sm:flex sm:w-fit flex-wrap gap-1 p-1 rounded-xl bg-muted"
+      value={translation}
+      onValueChange={(value) => value && onSelectTranslation(value as TranslationId)}
+    >
       {TRANSLATIONS.map((t) => (
-        <button
+        <ToggleGroup.Item
           key={t.id}
-          type="button"
-          onClick={() => onSelect(t.id)}
-          className={`px-3.5 py-1.5 text-sm font-medium rounded-full border transition-colors ${
-            translation === t.id
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-muted text-muted-foreground border-border hover:bg-accent hover:text-foreground"
-          }`}
+          value={t.id}
+          className="px-3 py-1.5 text-sm font-medium rounded-lg text-muted-foreground transition-colors hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-[0_1px_2px_oklch(0_0_0/0.08)]"
         >
           {t.id}
-        </button>
+        </ToggleGroup.Item>
       ))}
+    </ToggleGroup.Root>
+  );
+}
+
+interface FormActionsProps {
+  label: string;
+  onConfirm?: () => void;
+  onBack: () => void;
+}
+
+function FormActions({ label, onConfirm, onBack }: FormActionsProps) {
+  return (
+    <div className="flex gap-3">
+      <button type={onConfirm ? "button" : "submit"} onClick={onConfirm} className="btn-primary flex-1 py-3">
+        <BookPlus className="w-4 h-4" />
+        {label}
+      </button>
+      <button type="button" onClick={onBack} className="btn-muted px-4 py-3">Back</button>
     </div>
   );
 }
@@ -136,52 +136,25 @@ interface VerseImportConfirmationProps {
 }
 
 function VerseImportConfirmation({ results, onEdit, onConfirm, onBack }: VerseImportConfirmationProps) {
+  const single = results.length === 1;
   return (
-    <motion.div
-      key="confirm"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-5"
-    >
+    <motion.div key="confirm" {...slide(20)} className="space-y-5">
       <div className="flex items-center gap-2 bg-yv-green-10 text-yv-green-30 p-3 rounded-xl">
         <Check className="w-5 h-5" />
-        <span className="font-medium">
-          {results.length === 1
-            ? "Verse fetched successfully!"
-            : `${results.length} verses fetched — each will be added as its own card`}
-        </span>
+        <span className="font-medium">{single ? "Verse fetched successfully!" : `${results.length} verses fetched — each will be added as its own card`}</span>
       </div>
-
-      {results.length === 1 ? (
+      {single && (
         <>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground">Reference</label>
-            <div className="px-4 py-2.5 bg-muted border border-border rounded-xl font-medium text-foreground">
-              {results[0].reference}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground">
-              Verse Text
-              <span className="text-xs font-normal ml-2 text-muted-foreground">(editable — correct if needed)</span>
-            </label>
-            <textarea
-              value={results[0].text}
-              onChange={(e) => onEdit(e.target.value)}
-              rows={4}
-              className="w-full px-4 py-3 bg-background border border-border rounded-xl verse-text focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all resize-none text-foreground"
-            />
-          </div>
+          <Field label="Reference">
+            <div className="px-4 py-2.5 bg-muted border border-border rounded-xl font-medium text-foreground">{results[0].reference}</div>
+          </Field>
+          <Field label={<>Verse Text<span className={`${hintClass} ml-2`}>(editable — correct if needed)</span></>}>
+            <textarea value={results[0].text} onChange={(e) => onEdit(e.target.value)} rows={4} className="w-full px-4 py-3 bg-input border border-border rounded-xl verse-text focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all resize-none text-foreground" />
+          </Field>
         </>
-      ) : (
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-foreground">
-            Verses preview
-            <span className="text-xs font-normal ml-2 text-muted-foreground">
-              — will be grouped automatically
-            </span>
-          </label>
+      )}
+      {!single && (
+        <Field label={<>Verses preview<span className={`${hintClass} ml-2`}>— will be grouped automatically</span></>}>
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="max-h-56 overflow-y-auto divide-y divide-border">
               {results.map((r, i) => (
@@ -192,25 +165,16 @@ function VerseImportConfirmation({ results, onEdit, onConfirm, onBack }: VerseIm
               ))}
             </div>
           </div>
-        </div>
+        </Field>
       )}
-
-      <div className="flex gap-3">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={onConfirm}
-          className="btn-primary flex-1 py-3 shadow-sm"
-        >
-          <BookPlus className="w-4 h-4" />
-          {results.length === 1 ? "Add Verse" : `Add ${results.length} Verses`}
-        </motion.button>
-        <button onClick={onBack} className="btn-muted px-4 py-3">
-          Back
-        </button>
-      </div>
+      <FormActions label={single ? "Add Verse" : `Add ${results.length} Verses`} onConfirm={onConfirm} onBack={onBack} />
     </motion.div>
   );
+}
+
+interface AddVerseFormProps {
+  onAdd: (cards: Card[]) => void;
+  onCancel?: () => void;
 }
 
 export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
@@ -220,12 +184,14 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
   const [translation, setTranslation] = useState<TranslationId>("ESV");
   const [manualReference, setManualReference] = useState("");
   const [manualText, setManualText] = useState("");
-  const [formState, setFormState] = useState<FormState>("input");
+  const [formState, setFormState] = useState<"input" | "confirm" | "manual">("input");
   const [fetchedResults, setFetchedResults] = useState<LookupResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const selectedBookData = BIBLE_BOOKS.find((book) => book.id === selectedBook);
+  const chapters = parseVerseRange(chapter);
+  const multiChapter = chapters.length > 1;
 
   const handleBookSelect = (bookId: string) => {
     setSelectedBook(bookId);
@@ -234,55 +200,19 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
     preloadTranslation(translation);
   };
 
-  const multiChapter = parseVerseRange(chapter).length > 1;
-
   const handleFetchVerse = async () => {
     setError("");
-
-    if (!selectedBook || !chapter.trim()) {
-      setError("Please select a book and chapter");
-      return;
-    }
-
-    const chapters = parseVerseRange(chapter);
-    if (chapters.length === 0) {
-      setError("Please enter a valid chapter or chapter range (e.g., 1 or 1-3)");
-      return;
-    }
-
+    if (!selectedBook || !chapter.trim()) return setError("Please select a book and chapter");
+    if (chapters.length === 0) return setError("Please enter a valid chapter or chapter range (e.g., 1 or 1-3)");
     setIsLoading(true);
     try {
-      const results = await lookupSelection(selectedBook, chapter, verseRange, translation);
-      setFetchedResults(results);
+      setFetchedResults(await lookupSelection(selectedBook, chapter, verseRange, translation));
       setFormState("confirm");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch verse. Try manual entry.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleConfirmAdd = () => {
-    if (fetchedResults.length === 0) return;
-    const cards = fetchedResults.map((r) => createCard(r.reference, r.text.trim(), translation));
-    onAdd(cards);
-    resetForm();
-  };
-
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!manualReference.trim()) {
-      setError("Please enter a verse reference");
-      return;
-    }
-    if (!manualText.trim()) {
-      setError("Please enter the verse text");
-      return;
-    }
-    const card = createCard(manualReference.trim(), manualText.trim(), translation);
-    onAdd([card]);
-    resetForm();
   };
 
   const resetForm = () => {
@@ -297,41 +227,37 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
     setError("");
   };
 
+  const addCards = (entries: { reference: string; text: string }[]) => {
+    onAdd(entries.map((entry) => createCard(entry.reference, entry.text.trim(), translation)));
+    resetForm();
+  };
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualReference.trim()) return setError("Please enter a verse reference");
+    if (!manualText.trim()) return setError("Please enter the verse text");
+    addCards([{ reference: manualReference.trim(), text: manualText }]);
+  };
+
   const switchToManual = () => {
     setFormState("manual");
     setManualReference(selectedBookData ? `${selectedBookData.name} ${chapter}:${verseRange}` : "");
-    setFetchedResults([]);
     setError("");
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="glass p-6 sm:p-8"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="surface p-6 sm:p-8">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-foreground font-serif">
-          <BookPlus className="w-5 h-5 text-foreground" />
-          Add New Verse
-        </h2>
+        <h2 className="text-2xl font-semibold text-foreground font-serif tracking-[-0.01em]">Add New Verse</h2>
         {onCancel && (
-          <button
-            onClick={onCancel}
-            className="transition-colors p-1 rounded-lg hover:bg-muted text-muted-foreground"
-          >
+          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-muted hover:text-foreground text-muted-foreground" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
       {error && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="mb-4 p-3 bg-destructive/10 text-destructive rounded-xl text-sm flex items-center gap-2 border border-destructive/20"
-        >
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} role="alert" className="mb-4 p-3 bg-destructive/10 text-destructive rounded-xl text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </motion.div>
@@ -339,83 +265,34 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
 
       <AnimatePresence mode="wait">
         {formState === "input" && (
-          <motion.div
-            key="input"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="space-y-5"
-          >
-            <BookSelector selectedBook={selectedBookData} onSelect={handleBookSelect} />
-
+          <motion.div key="input" {...slide(-20)} className="space-y-5">
+            <BookSelector selectedBook={selectedBookData} onSelectBook={handleBookSelect} />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground">
-                  Chapter(s)
-                </label>
-                <input
-                  type="text"
-                  value={chapter}
-                  onChange={(e) => setChapter(e.target.value)}
-                  placeholder="1 or 1-3"
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all text-foreground"
-                />
-                <p className="text-xs mt-1 text-muted-foreground">
-                  {selectedBookData ? `Range: 1-3 · Max ${selectedBookData.chapters}` : "Range: 1-3 or single: 5"}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-foreground">
-                  Verse(s)
-                  <span className="text-xs font-normal ml-1.5 text-muted-foreground">(optional)</span>
-                </label>
+              <Field label="Chapter(s)">
+                <input type="text" value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="1 or 1-3" className={inputClass} />
+                <p className="text-xs mt-1 text-muted-foreground">{selectedBookData ? `Range: 1-3 · Max ${selectedBookData.chapters}` : "Range: 1-3 or single: 5"}</p>
+              </Field>
+              <Field label={<>Verse(s)<span className={`${hintClass} ml-1.5`}>(optional)</span></>}>
                 <input
                   type="text"
                   value={verseRange}
                   onChange={(e) => setVerseRange(e.target.value)}
                   placeholder="All verses"
                   disabled={multiChapter}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
-                <p className="text-xs mt-1 text-muted-foreground">
-                  {multiChapter ? "Whole chapters imported" : "Blank = whole chapter"}
-                </p>
-              </div>
+                <p className="text-xs mt-1 text-muted-foreground">{multiChapter ? "Whole chapters imported" : "Blank = whole chapter"}</p>
+              </Field>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">
-                Translation
-              </label>
-              <TranslationSelector translation={translation} onSelect={setTranslation} />
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={handleFetchVerse}
-              disabled={isLoading}
-              className="btn-primary w-full py-3 shadow-sm"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Fetching...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" />
-                  Import from Bible
-                </>
-              )}
-            </motion.button>
-
+            <Field label="Translation">
+              <TranslationSelector translation={translation} onSelectTranslation={setTranslation} />
+            </Field>
+            <button onClick={handleFetchVerse} disabled={isLoading} className="btn-primary w-full py-3">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {isLoading ? "Fetching..." : "Import from Bible"}
+            </button>
             <div className="text-center">
-              <button
-                type="button"
-                onClick={switchToManual}
-                className="text-sm underline transition-colors text-muted-foreground hover:text-foreground"
-              >
+              <button type="button" onClick={switchToManual} className="text-sm underline transition-colors text-muted-foreground hover:text-foreground">
                 Or enter verse manually
               </button>
             </div>
@@ -427,69 +304,30 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
             key="confirm"
             results={fetchedResults}
             onEdit={(text) => setFetchedResults([{ ...fetchedResults[0], text }])}
-            onConfirm={handleConfirmAdd}
+            onConfirm={() => fetchedResults.length > 0 && addCards(fetchedResults)}
             onBack={() => setFormState("input")}
           />
         )}
 
         {formState === "manual" && (
-          <motion.form
-            key="manual"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            onSubmit={handleManualSubmit}
-            className="space-y-5"
-          >
-            <div>
-              <label htmlFor="manual-reference" className="block text-sm font-medium mb-1.5 text-foreground">
-                Reference
-              </label>
-              <input
-                type="text"
-                id="manual-reference"
-                value={manualReference}
-                onChange={(e) => setManualReference(e.target.value)}
-                placeholder="e.g. John 3:16"
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all text-foreground"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="manual-translation" className="block text-sm font-medium mb-1.5 text-foreground">
-                Translation
-              </label>
-              <TranslationSelector translation={translation} onSelect={setTranslation} />
-            </div>
-
-            <div>
-              <label htmlFor="manual-text" className="block text-sm font-medium mb-1.5 text-foreground">
-                Verse Text
-              </label>
+          <motion.form key="manual" {...slide(20)} onSubmit={handleManualSubmit} className="space-y-5">
+            <Field label="Reference" htmlFor="manual-reference">
+              <input type="text" id="manual-reference" value={manualReference} onChange={(e) => setManualReference(e.target.value)} placeholder="e.g. John 3:16" className={inputClass} />
+            </Field>
+            <Field label="Translation" htmlFor="manual-translation">
+              <TranslationSelector translation={translation} onSelectTranslation={setTranslation} />
+            </Field>
+            <Field label="Verse Text" htmlFor="manual-text">
               <textarea
                 id="manual-text"
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
                 placeholder="Enter the verse text..."
                 rows={4}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all resize-none verse-text text-foreground"
+                className={`${inputClass} resize-none verse-text`}
               />
-            </div>
-
-            <div className="flex gap-3">
-              <motion.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                type="submit"
-                className="btn-primary flex-1 py-3 shadow-sm"
-              >
-                <BookPlus className="w-4 h-4" />
-                Add Verse
-              </motion.button>
-              <button type="button" onClick={() => setFormState("input")} className="btn-muted px-4 py-3">
-                Back
-              </button>
-            </div>
+            </Field>
+            <FormActions label="Add Verse" onBack={() => setFormState("input")} />
           </motion.form>
         )}
       </AnimatePresence>

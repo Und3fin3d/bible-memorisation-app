@@ -1,3 +1,4 @@
+import { isDue } from "./sm2";
 import type { Card } from "./sm2";
 import { parseVerseRange } from "./bibleData";
 
@@ -15,15 +16,11 @@ interface ParsedCard {
 export interface VerseGroup {
   id: string;
   reference: string;
-  book: string;
-  chapter: number;
-  startVerse: number;
-  endVerse: number;
   cards: Card[];
   isMiscellaneous: boolean;
 }
 
-export function parseReference(reference: string): ParsedReference | null {
+function parseReference(reference: string): ParsedReference | null {
   const match = reference.match(/^(?:(\d)\s+)?(.+?)\s+(\d+):(.+)$/);
   if (!match) return null;
   const [, prefix, book, chapter, verses] = match;
@@ -34,104 +31,55 @@ export function parseReference(reference: string): ParsedReference | null {
   };
 }
 
-function areSequential(
-  ref1: ParsedReference | undefined,
-  ref2: ParsedReference
-): boolean {
-  if (!ref1) return false;
-  return ref1.book === ref2.book && ref1.chapter === ref2.chapter
-    && Math.min(...ref2.verses) === Math.max(...ref1.verses) + 1;
-}
+const compareParsed = (a: ParsedReference, b: ParsedReference) =>
+  a.book.localeCompare(b.book) || a.chapter - b.chapter || Math.min(...a.verses) - Math.min(...b.verses);
 
-function formatReference(parsed: ParsedReference): string {
-  if (!parsed.chapter) return "";
+const areSequential = (a: ParsedReference, b: ParsedReference) =>
+  a.book === b.book && a.chapter === b.chapter && Math.min(...b.verses) === Math.max(...a.verses) + 1;
 
-  const { book, chapter, verses } = parsed;
-
-  if (verses.length === 0) return `${book} ${chapter}`;
-  if (verses.length === 1) return `${book} ${chapter}:${verses[0]}`;
+function formatRunReference({ book, chapter, verses }: ParsedReference): string {
+  if (!chapter) return "";
   const sorted = [...verses].sort((a, b) => a - b);
   const isContinuous = sorted.every((v, i) => i === 0 || v === sorted[i - 1] + 1);
-
-  if (isContinuous) {
-    return `${book} ${chapter}:${sorted[0]}-${sorted[sorted.length - 1]}`;
-  }
-  return `${book} ${chapter}:${sorted.join(",")}`;
+  return `${book} ${chapter}:${isContinuous ? `${sorted[0]}-${sorted[sorted.length - 1]}` : sorted.join(",")}`;
 }
 
-export function groupVerses(cards: Card[]): VerseGroup[] {
-  const parsedCards = cards.flatMap((card): ParsedCard[] => {
+function collectRuns(cards: Card[]): ParsedCard[][] {
+  const parsedCards = cards.flatMap((card) => {
     const parsed = parseReference(card.reference);
     return parsed ? [{ card, parsed }] : [];
   });
-  parsedCards.sort((a, b) => {
-    if (a.parsed.book !== b.parsed.book) {
-      return a.parsed.book.localeCompare(b.parsed.book);
-    }
-    if (a.parsed.chapter !== b.parsed.chapter) {
-      return a.parsed.chapter - b.parsed.chapter;
-    }
-    return Math.min(...a.parsed.verses) - Math.min(...b.parsed.verses);
-  });
-
-  const groups: ParsedCard[][] = [];
+  parsedCards.sort((a, b) => compareParsed(a.parsed, b.parsed));
+  const runs: ParsedCard[][] = [];
   for (const item of parsedCards) {
-    const previous = groups[groups.length - 1];
-    if (areSequential(previous?.[previous.length - 1].parsed, item.parsed)) previous.push(item);
-    else groups.push([item]);
+    const run = runs.at(-1);
+    if (run && areSequential(run[run.length - 1].parsed, item.parsed)) run.push(item);
+    else runs.push([item]);
   }
-  return groups.map(createGroupFromCards);
-}
-
-function createGroupFromCards(items: ParsedCard[]): VerseGroup {
-  const verses = items.flatMap(item => item.parsed.verses);
-  const { card, parsed } = items[0];
-  return {
-    id: `group-${card.id}`,
-    reference: formatReference({ ...parsed, verses }),
-    book: parsed.book,
-    chapter: parsed.chapter || 0,
-    startVerse: Math.min(...verses),
-    endVerse: Math.max(...verses),
-    cards: items.map(item => item.card),
-    isMiscellaneous: items.length === 1,
-  };
+  return runs;
 }
 
 export function getOrganizedGroups(cards: Card[]): {
   sequentialGroups: VerseGroup[];
   miscellaneousGroup: VerseGroup | null;
 } {
-  const groups = groupVerses(cards);
-
-  const sequentialGroups = groups.filter(g => !g.isMiscellaneous);
-  const miscCards = groups
-    .filter(g => g.isMiscellaneous)
-    .flatMap(g => g.cards)
-    .concat(cards.filter(card => !parseReference(card.reference)));
-
-  let miscellaneousGroup: VerseGroup | null = null;
-
-  if (miscCards.length > 0) {
-    miscellaneousGroup = {
-      id: "group-miscellaneous",
-      reference: "Miscellaneous",
-      book: "",
-      chapter: 0,
-      startVerse: 0,
-      endVerse: 0,
-      cards: miscCards,
-      isMiscellaneous: true,
-    };
-  }
-
+  const runs = collectRuns(cards);
+  const sequentialGroups = runs
+    .filter((run) => run.length > 1)
+    .map((run) => ({
+      id: `group-${run[0].card.id}`,
+      reference: formatRunReference({ ...run[0].parsed, verses: run.flatMap((item) => item.parsed.verses) }),
+      cards: run.map((item) => item.card),
+      isMiscellaneous: false,
+    }));
+  const miscCards = [
+    ...runs.filter((run) => run.length === 1).map(([item]) => item.card),
+    ...cards.filter((card) => !parseReference(card.reference)),
+  ];
+  const miscellaneousGroup = miscCards.length
+    ? { id: "group-miscellaneous", reference: "Miscellaneous", cards: miscCards, isMiscellaneous: true }
+    : null;
   return { sequentialGroups, miscellaneousGroup };
 }
 
-export function isCardDue(card: Card): boolean {
-  return new Date(card.nextReview) <= new Date();
-}
-
-export function isGroupDue(group: VerseGroup): boolean {
-  return group.cards.some(isCardDue);
-}
+export const isGroupDue = (group: VerseGroup) => group.cards.some((card) => isDue(card));

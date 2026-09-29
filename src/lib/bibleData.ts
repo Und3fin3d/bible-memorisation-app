@@ -5,74 +5,76 @@ export interface BibleBook {
   chapters: number;
 }
 
-export const BIBLE_BOOKS: BibleBook[] = [
-  { id: "GEN", name: "Genesis", testament: "old", chapters: 50 },
-  { id: "EXO", name: "Exodus", testament: "old", chapters: 40 },
-  { id: "LEV", name: "Leviticus", testament: "old", chapters: 27 },
-  { id: "NUM", name: "Numbers", testament: "old", chapters: 36 },
-  { id: "DEU", name: "Deuteronomy", testament: "old", chapters: 34 },
-  { id: "JOS", name: "Joshua", testament: "old", chapters: 24 },
-  { id: "JDG", name: "Judges", testament: "old", chapters: 21 },
-  { id: "RUT", name: "Ruth", testament: "old", chapters: 4 },
-  { id: "1SA", name: "1 Samuel", testament: "old", chapters: 31 },
-  { id: "2SA", name: "2 Samuel", testament: "old", chapters: 24 },
-  { id: "1KI", name: "1 Kings", testament: "old", chapters: 22 },
-  { id: "2KI", name: "2 Kings", testament: "old", chapters: 25 },
-  { id: "1CH", name: "1 Chronicles", testament: "old", chapters: 29 },
-  { id: "2CH", name: "2 Chronicles", testament: "old", chapters: 36 },
-  { id: "EZR", name: "Ezra", testament: "old", chapters: 10 },
-  { id: "NEH", name: "Nehemiah", testament: "old", chapters: 13 },
-  { id: "EST", name: "Esther", testament: "old", chapters: 10 },
-  { id: "JOB", name: "Job", testament: "old", chapters: 42 },
-  { id: "PSA", name: "Psalms", testament: "old", chapters: 150 },
-  { id: "PRO", name: "Proverbs", testament: "old", chapters: 31 },
-  { id: "ECC", name: "Ecclesiastes", testament: "old", chapters: 12 },
-  { id: "SNG", name: "Song of Solomon", testament: "old", chapters: 8 },
-  { id: "ISA", name: "Isaiah", testament: "old", chapters: 66 },
-  { id: "JER", name: "Jeremiah", testament: "old", chapters: 52 },
-  { id: "LAM", name: "Lamentations", testament: "old", chapters: 5 },
-  { id: "EZK", name: "Ezekiel", testament: "old", chapters: 48 },
-  { id: "DAN", name: "Daniel", testament: "old", chapters: 12 },
-  { id: "HOS", name: "Hosea", testament: "old", chapters: 14 },
-  { id: "JOL", name: "Joel", testament: "old", chapters: 3 },
-  { id: "AMO", name: "Amos", testament: "old", chapters: 9 },
-  { id: "OBA", name: "Obadiah", testament: "old", chapters: 1 },
-  { id: "JON", name: "Jonah", testament: "old", chapters: 4 },
-  { id: "MIC", name: "Micah", testament: "old", chapters: 7 },
-  { id: "NAM", name: "Nahum", testament: "old", chapters: 3 },
-  { id: "HAB", name: "Habakkuk", testament: "old", chapters: 3 },
-  { id: "ZEP", name: "Zephaniah", testament: "old", chapters: 3 },
-  { id: "HAG", name: "Haggai", testament: "old", chapters: 2 },
-  { id: "ZEC", name: "Zechariah", testament: "old", chapters: 14 },
-  { id: "MAL", name: "Malachi", testament: "old", chapters: 4 },
-  { id: "MAT", name: "Matthew", testament: "new", chapters: 28 },
-  { id: "MRK", name: "Mark", testament: "new", chapters: 16 },
-  { id: "LUK", name: "Luke", testament: "new", chapters: 24 },
-  { id: "JHN", name: "John", testament: "new", chapters: 21 },
-  { id: "ACT", name: "Acts", testament: "new", chapters: 28 },
-  { id: "ROM", name: "Romans", testament: "new", chapters: 16 },
-  { id: "1CO", name: "1 Corinthians", testament: "new", chapters: 16 },
-  { id: "2CO", name: "2 Corinthians", testament: "new", chapters: 13 },
-  { id: "GAL", name: "Galatians", testament: "new", chapters: 6 },
-  { id: "EPH", name: "Ephesians", testament: "new", chapters: 6 },
-  { id: "PHP", name: "Philippians", testament: "new", chapters: 4 },
-  { id: "COL", name: "Colossians", testament: "new", chapters: 4 },
-  { id: "1TH", name: "1 Thessalonians", testament: "new", chapters: 5 },
-  { id: "2TH", name: "2 Thessalonians", testament: "new", chapters: 3 },
-  { id: "1TI", name: "1 Timothy", testament: "new", chapters: 6 },
-  { id: "2TI", name: "2 Timothy", testament: "new", chapters: 4 },
-  { id: "TIT", name: "Titus", testament: "new", chapters: 3 },
-  { id: "PHM", name: "Philemon", testament: "new", chapters: 1 },
-  { id: "HEB", name: "Hebrews", testament: "new", chapters: 13 },
-  { id: "JAS", name: "James", testament: "new", chapters: 5 },
-  { id: "1PE", name: "1 Peter", testament: "new", chapters: 5 },
-  { id: "2PE", name: "2 Peter", testament: "new", chapters: 3 },
-  { id: "1JN", name: "1 John", testament: "new", chapters: 5 },
-  { id: "2JN", name: "2 John", testament: "new", chapters: 1 },
-  { id: "3JN", name: "3 John", testament: "new", chapters: 1 },
-  { id: "JUD", name: "Jude", testament: "new", chapters: 1 },
-  { id: "REV", name: "Revelation", testament: "new", chapters: 22 },
-];
+const OLD_TESTAMENT_BOOKS = 39;
+
+export const BIBLE_BOOKS: BibleBook[] = ([
+  ["GEN", "Genesis", 50],
+  ["EXO", "Exodus", 40],
+  ["LEV", "Leviticus", 27],
+  ["NUM", "Numbers", 36],
+  ["DEU", "Deuteronomy", 34],
+  ["JOS", "Joshua", 24],
+  ["JDG", "Judges", 21],
+  ["RUT", "Ruth", 4],
+  ["1SA", "1 Samuel", 31],
+  ["2SA", "2 Samuel", 24],
+  ["1KI", "1 Kings", 22],
+  ["2KI", "2 Kings", 25],
+  ["1CH", "1 Chronicles", 29],
+  ["2CH", "2 Chronicles", 36],
+  ["EZR", "Ezra", 10],
+  ["NEH", "Nehemiah", 13],
+  ["EST", "Esther", 10],
+  ["JOB", "Job", 42],
+  ["PSA", "Psalms", 150],
+  ["PRO", "Proverbs", 31],
+  ["ECC", "Ecclesiastes", 12],
+  ["SNG", "Song of Solomon", 8],
+  ["ISA", "Isaiah", 66],
+  ["JER", "Jeremiah", 52],
+  ["LAM", "Lamentations", 5],
+  ["EZK", "Ezekiel", 48],
+  ["DAN", "Daniel", 12],
+  ["HOS", "Hosea", 14],
+  ["JOL", "Joel", 3],
+  ["AMO", "Amos", 9],
+  ["OBA", "Obadiah", 1],
+  ["JON", "Jonah", 4],
+  ["MIC", "Micah", 7],
+  ["NAM", "Nahum", 3],
+  ["HAB", "Habakkuk", 3],
+  ["ZEP", "Zephaniah", 3],
+  ["HAG", "Haggai", 2],
+  ["ZEC", "Zechariah", 14],
+  ["MAL", "Malachi", 4],
+  ["MAT", "Matthew", 28],
+  ["MRK", "Mark", 16],
+  ["LUK", "Luke", 24],
+  ["JHN", "John", 21],
+  ["ACT", "Acts", 28],
+  ["ROM", "Romans", 16],
+  ["1CO", "1 Corinthians", 16],
+  ["2CO", "2 Corinthians", 13],
+  ["GAL", "Galatians", 6],
+  ["EPH", "Ephesians", 6],
+  ["PHP", "Philippians", 4],
+  ["COL", "Colossians", 4],
+  ["1TH", "1 Thessalonians", 5],
+  ["2TH", "2 Thessalonians", 3],
+  ["1TI", "1 Timothy", 6],
+  ["2TI", "2 Timothy", 4],
+  ["TIT", "Titus", 3],
+  ["PHM", "Philemon", 1],
+  ["HEB", "Hebrews", 13],
+  ["JAS", "James", 5],
+  ["1PE", "1 Peter", 5],
+  ["2PE", "2 Peter", 3],
+  ["1JN", "1 John", 5],
+  ["2JN", "2 John", 1],
+  ["3JN", "3 John", 1],
+  ["JUD", "Jude", 1],
+  ["REV", "Revelation", 22],
+] as const).map(([id, name, chapters], i) => ({ id, name, testament: i < OLD_TESTAMENT_BOOKS ? "old" : "new", chapters }));
 
 export const TRANSLATIONS = [
   { id: "ESV", name: "English Standard Version" },
@@ -83,17 +85,12 @@ export const TRANSLATIONS = [
   { id: "NASB", name: "New American Standard Bible" },
 ] as const;
 
-export type TranslationId = typeof TRANSLATIONS[number]["id"];
+export type TranslationId = (typeof TRANSLATIONS)[number]["id"];
 
 export function parseVerseRange(range: string): number[] {
-  const verses: number[] = [];
-  for (const part of range.split(/[,;]/)) {
-    const [start, end] = part.split("-").map(n => parseInt(n.trim(), 10));
-    if (end === undefined) {
-      if (!isNaN(start)) verses.push(start);
-      continue;
-    }
-    for (let verse = start; verse <= end; verse++) verses.push(verse);
-  }
-  return verses;
+  return range.split(/[,;]/).flatMap((part) => {
+    const [start, end] = part.split("-").map((n) => parseInt(n, 10));
+    if (end === undefined) return isNaN(start) ? [] : [start];
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
+  });
 }
