@@ -294,19 +294,34 @@ export function FirstLetterReviewCard({ card, onRate, onSkip }: ReviewCardProps)
   const correct = words.filter((word) => word.isCorrect).length;
   const percent = Math.round((correct / Math.max(typingWordCount, 1)) * 100);
   const inPlay = currentWordIndex < words.length && !showAnswer;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputFocused, setInputFocused] = useState(false);
+
+  const typeLetter = (letter: string) => {
+    setReview((state) => ({ ...state, ...applyLetter(state, letter) }));
+    setTimeout(() => setReview((state) => ({ ...state, justRevealed: null })), 300);
+  };
 
   const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
     const letter = e.key.toLowerCase();
     if (!inPlay || e.ctrlKey || e.metaKey || e.altKey || !/^[a-z]$/.test(letter)) return;
     e.preventDefault();
-    setReview((state) => ({ ...state, ...applyLetter(state, letter) }));
-    setTimeout(() => setReview((state) => ({ ...state, justRevealed: null })), 300);
+    typeLetter(letter);
   });
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, [card.id]);
+
+  const handleSoftKeyboardInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const letter = e.target.value.slice(-1).toLowerCase();
+    if (inPlay && /^[a-z]$/.test(letter)) typeLetter(letter);
+  };
 
   const showWholeAnswer = () => setReview((state) => ({ ...state, words: state.words.map((word) => ({ ...word, isRevealed: true })), showAnswer: true }));
 
@@ -324,7 +339,23 @@ export function FirstLetterReviewCard({ card, onRate, onSkip }: ReviewCardProps)
           </div>
         )}
 
-        <div className="bg-input border border-border rounded-xl px-5 py-5 min-h-[96px] verse-text text-lg leading-loose">
+        <div className="relative bg-input border border-border rounded-xl px-5 py-5 min-h-[96px] verse-text text-lg leading-loose">
+          {inPlay && (
+            <input
+              ref={inputRef}
+              value=""
+              onChange={handleSoftKeyboardInput}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              aria-label="Type the first letter of the next word"
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="next"
+              className="absolute inset-0 w-full h-full opacity-0 text-base caret-transparent cursor-text"
+            />
+          )}
           {words.map((word, index) => (
             <span key={index} className="inline-block mr-[0.3em]">
               {word.isRevealed ? (
@@ -352,6 +383,7 @@ export function FirstLetterReviewCard({ card, onRate, onSkip }: ReviewCardProps)
 
         {inPlay ? (
           <>
+            {!inputFocused && <p className="hidden pointer-coarse:block text-center text-xs text-muted-foreground">Tap the verse to bring up the keyboard</p>}
             <div>
               <div className="w-full rounded-full h-1.5 bg-muted overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-300 bg-foreground" style={{ width: `${(attempted / Math.max(typingWordCount, 1)) * 100}%` }} />
