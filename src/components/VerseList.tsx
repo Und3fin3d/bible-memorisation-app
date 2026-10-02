@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Collapsible, Tabs } from "radix-ui";
-import { getReviewStats, type Card, type ReviewMode } from "../lib/sm2";
+import { getReviewStats, type Card, type ReviewMode } from "../lib/scheduling";
 import type { CustomGroup } from "../lib/storage";
 import { getOrganizedGroups, isGroupDue, type VerseGroup } from "../lib/verseGroups";
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from "./ui";
@@ -12,7 +12,7 @@ type StudyGroupAction = (cardIds: string[], label: string) => void;
 const modes: Record<ReviewMode, { label: string; icon: React.ReactNode }> = {
   flashcard: { label: "Flashcard", icon: <Eye className="w-3 h-3 inline" /> },
   typing: { label: "Typing", icon: <Keyboard className="w-3 h-3 inline" /> },
-  "first-letter": { label: "First Letters", icon: <Type className="w-3 h-3 inline" /> },
+  "first-letter": { label: "First letters", icon: <Type className="w-3 h-3 inline" /> },
 };
 
 const statNames = ["mastered", "learning", "new"] as const;
@@ -115,8 +115,8 @@ function GroupCard({ group, onDelete, onStudyGroup }: GroupCardProps) {
   const deleteDialog = (
     <ConfirmDialog
       open={!!deleteTarget}
-      title="Delete Verse"
-      message={`Remove "${deleteTarget?.reference}" from your collection? This cannot be undone.`}
+      title="Delete verse"
+      message={`Delete ${deleteTarget?.reference}? You cannot undo this.`}
       onConfirm={() => {
         onDelete(deleteTarget!.id);
         setDeleteTarget(null);
@@ -130,7 +130,7 @@ function GroupCard({ group, onDelete, onStudyGroup }: GroupCardProps) {
       <section className="surface">
         <div className="px-4 pt-4 pb-2 flex items-baseline gap-2">
           <h3 className="font-semibold text-sm text-foreground">Miscellaneous</h3>
-          <span className="text-xs text-muted-foreground tabular-nums">{group.cards.length} verses</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{group.cards.length} verse{group.cards.length !== 1 ? "s" : ""}</span>
         </div>
         {verseRows}
         {deleteDialog}
@@ -145,7 +145,7 @@ function GroupCard({ group, onDelete, onStudyGroup }: GroupCardProps) {
           <span className="min-w-0 flex-1">
             <span className="block font-semibold font-serif text-foreground">{group.reference}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground tabular-nums">
-              <span>{group.cards.length} verses</span>
+              <span>{group.cards.length} verse{group.cards.length !== 1 ? "s" : ""}</span>
               {isGroupDue(group) && <>· <DueMark /></>}
               <GroupStats group={group} />
             </span>
@@ -184,7 +184,7 @@ function VersePicker({ allCards, currentIds, onSave, onCancel }: VersePickerProp
   return (
     <>
       <div className="p-4 pr-16">
-        <DialogTitle>Select Verses</DialogTitle>
+        <DialogTitle>Choose verses</DialogTitle>
       </div>
       <div className="px-4 pb-3 border-b border-border">
         <div className="relative">
@@ -314,7 +314,7 @@ function CollectionCard({ group, allCards, onStudy, onUpdate, onRename, onDelete
           )}
         </div>
         <Collapsible.Content className="border-t border-border">
-          {groupCards.length === 0 && <p className="text-sm text-muted-foreground px-4 py-4">No verses yet — click "Edit verses" to add some</p>}
+          {groupCards.length === 0 && <p className="text-sm text-muted-foreground px-4 py-4">No verses yet. Select Edit verses to add some.</p>}
           {groupCards.length > 0 && (
             <ul className="divide-y divide-border">
               {groupCards.map((card) => (
@@ -359,8 +359,8 @@ function CollectionCard({ group, allCards, onStudy, onUpdate, onRename, onDelete
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete Collection"
-        message={`Delete "${group.name}"? Your verses won't be deleted — only this collection.`}
+        title="Delete collection"
+        message={`Delete "${group.name}"? Your verses stay in your library.`}
         onConfirm={() => {
           setConfirmDelete(false);
           onDelete();
@@ -399,7 +399,7 @@ function CollectionList({ groups, allCards, onStudyGroup, onCreate, onUpdate, on
   const newButton = (className: string) => (
     <button onClick={() => setCreating(true)} className={className}>
       <Plus className="w-4 h-4" />
-      New Collection
+      New collection
     </button>
   );
 
@@ -407,7 +407,7 @@ function CollectionList({ groups, allCards, onStudyGroup, onCreate, onUpdate, on
     return (
       <div className="text-center py-12">
         <p className="text-xl font-semibold font-serif text-foreground">No collections yet</p>
-        <p className="text-sm mt-1 mb-5 text-muted-foreground">Create a collection to study a curated set of verses</p>
+        <p className="text-sm mt-1 mb-5 text-muted-foreground">Group verses that you want to study together.</p>
         {newButton("btn-primary px-5 py-2.5")}
       </div>
     );
@@ -429,7 +429,7 @@ function CollectionList({ groups, allCards, onStudyGroup, onCreate, onUpdate, on
       {!creating && newButton("btn-muted w-full py-3")}
       {creating && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="surface p-4">
-          <label htmlFor="new-collection-name" className="block text-sm font-medium mb-2 text-foreground">New Collection</label>
+          <label htmlFor="new-collection-name" className="block text-sm font-medium mb-2 text-foreground">New collection</label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -476,7 +476,7 @@ export function VerseList({ cards, onDelete, customGroups, onStudyGroup, onCreat
     return (
       <div className="text-center py-16">
         <p className="text-xl font-semibold font-serif text-foreground">No verses yet</p>
-        <p className="text-sm mt-1 text-muted-foreground">Add your first verse to get started</p>
+        <p className="text-sm mt-1 text-muted-foreground">Add a verse to start.</p>
       </div>
     );
   }
@@ -484,9 +484,9 @@ export function VerseList({ cards, onDelete, customGroups, onStudyGroup, onCreat
   return (
     <Tabs.Root value={activeListTab} onValueChange={setActiveListTab} className="space-y-4">
       <Tabs.List className="flex gap-1 p-1 rounded-xl bg-muted">
-        <Tabs.Trigger value="groups" className={tabClass}>Scripture Groups</Tabs.Trigger>
+        <Tabs.Trigger value="groups" className={tabClass}>Passages</Tabs.Trigger>
         <Tabs.Trigger value="collections" className={tabClass}>
-          My Collections
+          Collections
           {customGroups.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{customGroups.length}</span>}
         </Tabs.Trigger>
       </Tabs.List>

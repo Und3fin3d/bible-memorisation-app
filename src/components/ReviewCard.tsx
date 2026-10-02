@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useEffectEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, SkipForward, X } from "lucide-react";
-import type { Card, QualityRating } from "../lib/sm2";
-import { calculateAccuracy, getNextIntervalText } from "../lib/sm2";
+import type { Card, QualityRating } from "../lib/scheduling";
+import { calculateAccuracy, getNextIntervalText } from "../lib/scheduling";
 
 const TEXT_ENTRY_TAGS = ["INPUT", "TEXTAREA", "SELECT"];
 
@@ -39,6 +39,8 @@ type RatingBarProps = {
   card: Card;
   onRate: (quality: QualityRating) => void;
   showKeys?: boolean;
+  mode?: "typing" | "first-letter";
+  accuracy?: number;
 };
 
 type AnswerShownNoticeProps = { className?: string };
@@ -60,9 +62,9 @@ type FirstLetterRound = {
 
 const ratings: { quality: QualityRating; label: string; key: string }[] = [
   { quality: 1, label: "Again", key: "1" },
-  { quality: 3, label: "Hard", key: "2" },
-  { quality: 4, label: "Good", key: "3" },
-  { quality: 5, label: "Easy", key: "4" },
+  { quality: 2, label: "Hard", key: "2" },
+  { quality: 3, label: "Good", key: "3" },
+  { quality: 4, label: "Easy", key: "4" },
 ];
 
 const wordTone: Record<string, string> = {
@@ -141,23 +143,20 @@ function ReviewShell({ card, modeLabel, onSkip, skipHint = "Skip", children }: R
   );
 }
 
-function RatingBar({ card, onRate, showKeys = false }: RatingBarProps) {
+function RatingBar({ card, onRate, showKeys = false, mode, accuracy }: RatingBarProps) {
   return (
-    <div className="space-y-3">
-      <p className="text-center text-sm text-muted-foreground">How well did you remember?</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {ratings.map(({ quality, label, key }) => (
-          <button
-            key={quality}
-            onClick={() => onRate(quality)}
-            className="relative flex flex-col items-center gap-0.5 px-3 py-3 rounded-xl border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors"
-          >
-            <span className={`text-sm font-semibold ${quality === 1 ? "text-destructive" : "text-foreground"}`}>{label}</span>
-            <span className="text-xs text-muted-foreground tabular-nums">{getNextIntervalText(card, quality)}</span>
-            {showKeys && <kbd className="absolute top-1.5 right-1.5 hidden sm:block">{key}</kbd>}
-          </button>
-        ))}
-      </div>
+    <div className="grid grid-cols-4 gap-2">
+      {ratings.map(({ quality, label, key }) => (
+        <button
+          key={quality}
+          onClick={() => onRate(quality)}
+          title={showKeys ? `Shortcut key: ${key}` : undefined}
+          className="flex flex-col items-center gap-0.5 px-2 py-3 rounded-xl border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors"
+        >
+          <span className="text-xs text-muted-foreground tabular-nums">{getNextIntervalText(card, quality, mode, accuracy)}</span>
+          <span className={`text-sm font-semibold ${quality === 1 ? "text-destructive" : "text-foreground"}`}>{label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -200,7 +199,7 @@ export function ReviewCard({ card, onRate, onSkip }: ReviewCardProps) {
               className="flex items-center gap-2.5 px-5 py-3 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
             >
               <Eye className="w-4 h-4" />
-              Tap to reveal
+              Show answer
               <kbd className="hidden sm:inline">Space</kbd>
             </motion.button>
           )}
@@ -279,7 +278,7 @@ export function TypingReviewCard({ card, onRate, onSkip }: ReviewCardProps) {
                 <p className="text-sm text-muted-foreground">accuracy</p>
               </div>
             )}
-            <RatingBar card={card} onRate={(quality) => rate(showAnswer ? 1 : quality, accuracy)} />
+            <RatingBar card={card} mode="typing" accuracy={showAnswer ? 0 : accuracy} onRate={(quality) => rate(showAnswer ? 1 : quality, accuracy)} />
           </div>
         )}
       </div>
@@ -375,7 +374,7 @@ export function FirstLetterReviewCard({ card, onRate, onSkip }: ReviewCardProps)
               <p className="text-sm text-muted-foreground mt-1">{percent}% correct</p>
             </div>
             {showAnswer && <AnswerShownNotice className="border-t border-border" />}
-            <RatingBar card={card} onRate={(quality) => rate(showAnswer ? 1 : quality, percent)} />
+            <RatingBar card={card} mode="first-letter" accuracy={showAnswer ? 0 : percent} onRate={(quality) => rate(showAnswer ? 1 : quality, percent)} />
           </div>
         )}
       </div>

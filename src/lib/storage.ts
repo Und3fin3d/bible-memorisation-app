@@ -1,5 +1,5 @@
-import { createCard, daysAgo, isoDay } from "./sm2";
-import type { Card } from "./sm2";
+import { createCard, daysAgo, isoDay, restoreCard } from "./scheduling";
+import type { Card, StoredCard } from "./scheduling";
 
 export interface StreakData {
   currentStreak: number;
@@ -33,15 +33,8 @@ const keys = {
 };
 
 export const sampleVerses = [
-  ["John 3:16", "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life."],
-  ["Philippians 4:13", "I can do all this through him who gives me strength."],
-  ["Romans 8:28", "And we know that in all things God works for the good of those who love him, who have been called according to his purpose."],
-  ["Psalm 23:1", "The Lord is my shepherd, I lack nothing."],
-  ["Proverbs 3:5-6", "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight."],
-  ["Isaiah 40:31", "But those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint."],
-  ["Matthew 11:28", "Come to me, all you who are weary and burdened, and I will give you rest."],
-  ["Jeremiah 29:11", "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future."],
-].map(([reference, text]) => createCard(reference, text));
+  createCard("John 3:16", "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life."),
+];
 
 function readStored<T>(key: string, fallback: T, revive = (value: unknown) => value as T): T {
   try {
@@ -60,13 +53,7 @@ function saveStored(key: string, value: unknown, error?: string): void {
   }
 }
 
-const reviveCards = (cards: unknown) =>
-  (cards as Card[]).map((card) => ({
-    ...card,
-    nextReview: new Date(card.nextReview),
-    lastReviewed: card.lastReviewed ? new Date(card.lastReviewed) : null,
-    createdAt: new Date(card.createdAt),
-  }));
+const reviveCards = (cards: unknown) => (cards as StoredCard[]).map(restoreCard);
 
 export const loadCards = () => readStored<Card[] | null>(keys.cards, null, reviveCards);
 export const saveCards = (cards: Card[]) => saveStored(keys.cards, cards, "Failed to save cards to localStorage");

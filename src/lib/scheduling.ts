@@ -1,17 +1,17 @@
+import { createEmptyCard, fsrs, GenSeedStrategyWithCardId, Rating, State, StrategyMode, type Card as Schedule, type Grade } from "ts-fsrs";
 import type { StreakData, CustomGroup, ReviewSelection } from "./storage";
 import type { VerseGroup } from "./verseGroups";
 
 export type ReviewMode = "flashcard" | "typing" | "first-letter";
 
-export type QualityRating = 0 | 1 | 2 | 3 | 4 | 5;
+export type QualityRating = Grade;
 
 export interface Card {
   id: string;
   reference: string;
   text: string;
   translation: string;
-  ef: number;
-  interval: number;
+  schedule: Schedule;
   repetitions: number;
   nextReview: Date;
   lastReviewed: Date | null;
@@ -21,18 +21,55 @@ export interface Card {
 
 export const DAY_MS = 86400000;
 
+const scheduler = fsrs({ enable_fuzz: true }).useStrategy(StrategyMode.SEED, GenSeedStrategyWithCardId("id"));
+
+export type StoredCard = Omit<Card, "schedule"> & { schedule?: Schedule; ef?: number; interval?: number };
+
 export const isoDay = (date: Date) => date.toISOString().split("T")[0];
 
 export const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
 
 export const isDue = (card: Card, now = new Date()) => card.nextReview <= now;
 
-function calculateNextReview(card: Card, quality: QualityRating) {
-  const ef = Math.max(1.3, card.ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
-  const now = new Date();
-  if (quality < 3) return { ef, interval: 0, repetitions: 0, nextReview: now, lastReviewed: now };
-  const interval = [1, 6][card.repetitions] ?? Math.round(card.interval * ef);
-  return { ef, interval, repetitions: card.repetitions + 1, nextReview: new Date(now.getTime() + interval * DAY_MS), lastReviewed: now };
+function migrateSchedule(card: StoredCard): Schedule {
+  const schedule = createEmptyCard(card.nextReview);
+  if (!card.lastReviewed) return schedule;
+  const interval = card.interval ?? 0;
+  const stability = Math.max(0.001, interval);
+  const { w } = scheduler.parameters;
+  const difficulty = 11 - ((card.ef ?? 2.5) - 1) / (Math.exp(w[8]) * stability ** -w[9] * Math.expm1(0.1 * w[10]));
+  return {
+    ...schedule,
+    stability,
+    difficulty: Math.min(10, Math.max(1, difficulty)),
+    scheduled_days: interval,
+    reps: Math.max(1, card.repetitions),
+    state: interval > 0 ? State.Review : State.Learning,
+    last_review: card.lastReviewed,
+  };
+}
+
+export function restoreCard(stored: StoredCard): Card {
+  const { ef, interval, schedule, ...fields } = stored;
+  const card = {
+    ...fields,
+    nextReview: new Date(fields.nextReview),
+    lastReviewed: fields.lastReviewed ? new Date(fields.lastReviewed) : null,
+    createdAt: new Date(fields.createdAt),
+  };
+  const restored = schedule ? {
+    ...schedule,
+    due: new Date(schedule.due),
+    last_review: schedule.last_review ? new Date(schedule.last_review) : undefined,
+  } : migrateSchedule({ ...card, ef, interval });
+  return { ...card, schedule: restored };
+}
+
+function calculateNextReview(card: Card, quality: QualityRating, now: Date) {
+  const current = { ...card.schedule, id: card.id };
+  const { card: schedule } = scheduler.next(current, now, quality);
+  const repetitions = quality === Rating.Again ? 0 : card.repetitions + 1;
+  return { schedule, repetitions, nextReview: schedule.due, lastReviewed: now };
 }
 
 export function createCard(reference: string, text: string, translation = "NIV"): Card {
@@ -42,8 +79,7 @@ export function createCard(reference: string, text: string, translation = "NIV")
     reference,
     text,
     translation,
-    ef: 2.5,
-    interval: 0,
+    schedule: createEmptyCard(now),
     repetitions: 0,
     nextReview: now,
     lastReviewed: null,
@@ -52,8 +88,7 @@ export function createCard(reference: string, text: string, translation = "NIV")
   };
 }
 
-export function getDueCards(cards: Card[]): Card[] {
-  const now = new Date();
+export function getDueCards(cards: Card[], now = new Date()): Card[] {
   return cards.filter((card) => isDue(card, now)).sort((a, b) => a.nextReview.getTime() - b.nextReview.getTime());
 }
 
@@ -69,14 +104,17 @@ export function getReviewStats(cards: Card[]) {
   };
 }
 
-export function getNextIntervalText(card: Card, quality: QualityRating): string {
-  if (quality < 3) return "< 1 min";
-  if (card.repetitions === 0) return "1 day";
-  if (card.repetitions === 1) return "6 days";
-  const days = Math.round(card.interval * card.ef);
-  if (days < 30) return `${days} days`;
-  if (days < 365) return `${Math.round(days / 30)} months`;
-  return `${(days / 365).toFixed(1)} years`;
+export function getNextIntervalText(card: Card, quality: QualityRating, mode: ReviewMode = "flashcard", accuracy?: number): string {
+  const now = new Date();
+  const { nextReview } = calculateNextReview(card, adjustQuality(quality, mode, accuracy), now);
+  const minutes = Math.round((nextReview.getTime() - now.getTime()) / 60000);
+  if (minutes < 1) return "<1m";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
+  const days = Math.round(minutes / 1440);
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${(days / 30).toFixed(1)}mo`;
+  return `${(days / 365).toFixed(1)}y`;
 }
 
 const normaliseText = (text: string) => text.toLowerCase().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").trim();
@@ -106,8 +144,8 @@ function levenshteinDistance(a: string, b: string): number {
 
 function adjustQuality(quality: QualityRating, mode: ReviewMode, accuracy?: number): QualityRating {
   if (mode === "flashcard" || accuracy === undefined) return quality;
-  if (accuracy < 50) return 1;
-  return accuracy < 80 && quality > 3 ? 3 : quality;
+  if (accuracy < 50) return Rating.Again;
+  return accuracy < 80 && quality > Rating.Hard ? Rating.Hard : quality;
 }
 
 function recordReview(streak: StreakData): StreakData {
@@ -130,10 +168,10 @@ export function applyReview(
   streak: StreakData
 ) {
   const adjusted = adjustQuality(quality, mode, accuracy);
-  const updates = calculateNextReview(card, adjusted);
+  const updates = calculateNextReview(card, adjusted, new Date());
   let celebration: string | null = null;
   if (updates.repetitions === 5) celebration = `${card.reference} mastered!`;
-  else if (adjusted === 5 && updates.repetitions > 5) celebration = "Perfect recall!";
+  else if (adjusted === Rating.Easy && updates.repetitions > 5) celebration = "Perfect recall!";
   const modesUsed = card.modesUsed.includes(mode) ? card.modesUsed : [...card.modesUsed, mode];
   return { card: { ...card, ...updates, modesUsed }, streak: recordReview(streak), celebration };
 }

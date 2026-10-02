@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import { Flame } from "lucide-react";
-import { getReviewStats } from "../lib/sm2";
+import { getReviewStats } from "../lib/scheduling";
 import { getWeeklyData } from "../lib/storage";
-import type { Card } from "../lib/sm2";
+import type { Card } from "../lib/scheduling";
 import type { StreakData, DailyReviewLog } from "../lib/storage";
 
 interface ProgressStatsProps {
@@ -17,18 +17,18 @@ function progressCopy(stats: ReturnType<typeof getReviewStats>) {
   if (stats.due > 0) {
     return {
       quote: '"Thy word have I hid in mine heart."',
-      detail: `${stats.due} verse${stats.due === 1 ? "" : "s"} waiting for review.`,
+      detail: `${stats.due} verse${stats.due === 1 ? "" : "s"} due.`,
     };
   }
   if (stats.mastered === stats.total) {
     return {
       quote: '"Well done, good and faithful servant!"',
-      detail: `All ${stats.total} verses mastered.`,
+      detail: "All verses mastered.",
     };
   }
   return {
     quote: '"Be diligent to present yourself approved."',
-    detail: "Keep going, you're doing great.",
+    detail: `${stats.mastered} of ${stats.total} mastered.`,
   };
 }
 

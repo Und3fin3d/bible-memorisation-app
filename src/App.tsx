@@ -1,22 +1,20 @@
 import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { loadCards, saveCards, loadStreak, saveStreak, loadReviewLog, addReviewToLog, loadCustomGroups, saveCustomGroups, loadLastSelection, saveLastSelection, sampleVerses } from "./lib/storage";
-import { getDueCards, applyReview, resolveSelection } from "./lib/sm2";
+import { getDueCards, applyReview, resolveSelection } from "./lib/scheduling";
 import { getOrganizedGroups } from "./lib/verseGroups";
 import { AddVerseForm } from "./components/AddVerseForm";
 import { ReviewCard, TypingReviewCard, FirstLetterReviewCard } from "./components/ReviewCard";
 import { ReviewModeSelector, ReviewSelectionScreen } from "./components/ReviewSelectionScreen";
 import { VerseList } from "./components/VerseList";
 import { ProgressStats } from "./components/ProgressStats";
-import { QuickStartTutorial } from "./components/QuickStartTutorial";
-import type { Card, QualityRating, ReviewMode } from "./lib/sm2";
+import type { Card, QualityRating, ReviewMode } from "./lib/scheduling";
 import type { CustomGroup, ReviewSelection } from "./lib/storage";
-import { BookOpen, Plus, List, BarChart2, Flame, ArrowLeft, Sun, Moon, CircleHelp, Award } from "lucide-react";
+import { BookOpen, Plus, List, BarChart2, Flame, ArrowLeft, Sun, Moon, Award } from "lucide-react";
 
 type Tab = "review" | "add" | "list" | "stats";
 type ReviewState = "selecting-filter" | "selecting-mode" | "reviewing";
 
-const TUTORIAL_STORAGE_KEY = "bible-memory-quick-start-v1";
 const iconButtonClass = "w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors";
 const backButtonClass = "flex items-center gap-1 text-sm font-medium transition-colors text-muted-foreground hover:text-foreground";
 
@@ -43,7 +41,12 @@ function App() {
   const [customGroups, setCustomGroups] = useState(loadCustomGroups);
   const [currentReviewSelection, setCurrentReviewSelection] = useState<ReviewSelection | null>(null);
   const [lastSelection, setLastSelection] = useState(loadLastSelection);
-  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem(TUTORIAL_STORAGE_KEY) !== "complete");
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -59,13 +62,13 @@ function App() {
     return () => clearTimeout(timer);
   }, [celebration]);
 
-  const allDueCards = useMemo(() => getDueCards(cards), [cards]);
+  const allDueCards = useMemo(() => getDueCards(cards, now), [cards, now]);
   const { sequentialGroups } = useMemo(() => getOrganizedGroups(cards), [cards]);
   const filteredCards = useMemo(
     () => resolveSelection(currentReviewSelection, cards, customGroups, sequentialGroups),
     [cards, currentReviewSelection, customGroups, sequentialGroups]
   );
-  const dueCards = useMemo(() => getDueCards(filteredCards), [filteredCards]);
+  const dueCards = useMemo(() => getDueCards(filteredCards, now), [filteredCards, now]);
   const currentCard = dueCards[0];
 
   const handleTabClick = (tab: Tab) => {
@@ -142,21 +145,7 @@ function App() {
     setCustomGroups((prev) => [...prev, { id: crypto.randomUUID(), name, cardIds: [], createdAt: new Date().toISOString() }]);
   };
 
-  const closeTutorial = () => {
-    localStorage.setItem(TUTORIAL_STORAGE_KEY, "complete");
-    setShowTutorial(false);
-  };
-
-  const startGuidedReview = () => {
-    closeTutorial();
-    chooseSelection({ type: "all", name: "Study All Verses" });
-    setCurrentReviewMode("flashcard");
-    setReviewState("reviewing");
-    setActiveTab("review");
-  };
-
   const SelectedReviewCard = reviewCards[currentReviewMode ?? "flashcard"];
-  const selectionName = currentReviewSelection?.name || "this selection";
   const reviewedPercent = ((filteredCards.length - dueCards.length) / Math.max(filteredCards.length, 1)) * 100;
 
   function renderReviewContent() {
@@ -165,11 +154,11 @@ function App() {
         <div className="text-center py-16">
           <h2 className="text-2xl font-semibold mb-2 text-foreground font-serif">All caught up</h2>
           <p className="max-w-md mx-auto mb-6 text-sm text-muted-foreground">
-            No verses due for review. Come back later or add more to your collection.
+            No verses are due. Add a verse or come back later.
           </p>
           <button onClick={() => setActiveTab("add")} className="btn-primary px-5">
             <Plus className="w-4 h-4" />
-            Add a Verse
+            Add a verse
           </button>
         </div>
       );
@@ -198,7 +187,6 @@ function App() {
             onStart={handleStartReview}
             scopeLabel={currentReviewSelection?.name}
             scopeCardCount={filteredCards.length}
-            onClearScope={currentReviewSelection?.type !== "all" ? handleBackToFilterSelection : undefined}
           />
         </>
       );
@@ -226,12 +214,12 @@ function App() {
           <SelectedReviewCard card={currentCard} onRate={handleRateCard} onSkip={handleSkipCard} />
         ) : (
           <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2 text-foreground font-serif">All done for this selection</h3>
+            <h3 className="text-xl font-semibold mb-2 text-foreground font-serif">All done</h3>
             <p className="text-sm mb-4 text-muted-foreground">
-              No more verses due in {selectionName}.
+              No more verses are due in this selection.
             </p>
             <button onClick={handleBackToFilterSelection} className="btn-muted">
-              Study something else
+              Choose another selection
             </button>
           </div>
         )}
@@ -290,7 +278,6 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <QuickStartTutorial open={showTutorial} onClose={closeTutorial} onStartReview={startGuidedReview} />
       <header className="sticky top-0 z-10 bg-background border-b border-border">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -306,9 +293,6 @@ function App() {
             <span className="text-base font-semibold tracking-[-0.01em] text-foreground font-serif">Bible Memory</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowTutorial(true)} className={iconButtonClass} aria-label="Open quick start" title="Quick start">
-              <CircleHelp className="w-4 h-4" />
-            </button>
             {streak.currentStreak > 0 && (
               <div className="flex items-center gap-1 h-9 px-2" title={`${streak.currentStreak}-day streak`}>
                 <Flame className="w-3.5 h-3.5 text-yv-orange-30" />
@@ -338,10 +322,7 @@ function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <nav
-        aria-hidden={showTutorial || undefined}
-        className={`fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 justify-center px-4 ${showTutorial ? "hidden" : "flex"}`}
-      >
+      <nav className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-4">
         <div className="dock rounded-full flex items-center p-1.5">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;

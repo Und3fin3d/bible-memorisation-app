@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Popover, ToggleGroup } from "radix-ui";
 import { Command } from "cmdk";
-import { createCard, type Card } from "../lib/sm2";
+import { createCard, type Card } from "../lib/scheduling";
 import { BIBLE_BOOKS, TRANSLATIONS, parseVerseRange, type BibleBook, type TranslationId } from "../lib/bibleData";
 import { lookupSelection, preloadTranslation, type LookupResult } from "../lib/bibleLocal";
 import { BookPlus, X, AlertCircle, Search, Loader2, Check, ChevronsUpDown } from "lucide-react";
@@ -42,7 +42,7 @@ function BookSelector({ selectedBook, onSelectBook }: BookSelectorProps) {
           aria-labelledby="book-label book-value"
           className={`w-full px-4 py-2.5 bg-input border border-border rounded-xl text-left outline-none transition-colors hover:border-foreground/30 flex items-center justify-between ${selectedBook ? "text-foreground" : "text-muted-foreground"}`}
         >
-          <span id="book-value">{selectedBook?.name ?? "Select a book..."}</span>
+          <span id="book-value">{selectedBook?.name ?? "Choose a book"}</span>
           <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
         </Popover.Trigger>
         <Popover.Portal>
@@ -54,7 +54,7 @@ function BookSelector({ selectedBook, onSelectBook }: BookSelectorProps) {
             <Command className="flex flex-col overflow-hidden rounded-xl">
               <div className="flex items-center gap-2 border-b border-border px-3">
                 <Search className="w-4 h-4 shrink-0 text-muted-foreground" />
-                <Command.Input placeholder="Search books..." aria-label="Search books" className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+                <Command.Input placeholder="Search books" aria-label="Search books" className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
               </div>
               <Command.List className="max-h-64 overflow-y-auto overscroll-contain p-1">
                 <Command.Empty className="py-6 text-center text-sm text-muted-foreground">No book found</Command.Empty>
@@ -141,20 +141,20 @@ function VerseImportConfirmation({ results, onEdit, onConfirm, onBack }: VerseIm
     <motion.div key="confirm" {...slide(20)} className="space-y-5">
       <div className="flex items-center gap-2 bg-yv-green-10 text-yv-green-30 p-3 rounded-xl">
         <Check className="w-5 h-5" />
-        <span className="font-medium">{single ? "Verse fetched successfully!" : `${results.length} verses fetched — each will be added as its own card`}</span>
+        <span className="font-medium">{single ? "Verse found" : `${results.length} verses found. Each verse becomes a separate card.`}</span>
       </div>
       {single && (
         <>
           <Field label="Reference">
             <div className="px-4 py-2.5 bg-muted border border-border rounded-xl font-medium text-foreground">{results[0].reference}</div>
           </Field>
-          <Field label={<>Verse Text<span className={`${hintClass} ml-2`}>(editable — correct if needed)</span></>}>
+          <Field label={<>Verse text<span className={`${hintClass} ml-2`}>(you can edit this)</span></>}>
             <textarea value={results[0].text} onChange={(e) => onEdit(e.target.value)} rows={4} className="w-full px-4 py-3 bg-input border border-border rounded-xl verse-text focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all resize-none text-foreground" />
           </Field>
         </>
       )}
       {!single && (
-        <Field label={<>Verses preview<span className={`${hintClass} ml-2`}>— will be grouped automatically</span></>}>
+        <Field label={<>Preview<span className={`${hintClass} ml-2`}>(grouped by passage)</span></>}>
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="max-h-56 overflow-y-auto divide-y divide-border">
               {results.map((r, i) => (
@@ -167,7 +167,7 @@ function VerseImportConfirmation({ results, onEdit, onConfirm, onBack }: VerseIm
           </div>
         </Field>
       )}
-      <FormActions label={single ? "Add Verse" : `Add ${results.length} Verses`} onConfirm={onConfirm} onBack={onBack} />
+      <FormActions label={single ? "Add verse" : `Add ${results.length} verses`} onConfirm={onConfirm} onBack={onBack} />
     </motion.div>
   );
 }
@@ -202,14 +202,14 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
 
   const handleFetchVerse = async () => {
     setError("");
-    if (!selectedBook || !chapter.trim()) return setError("Please select a book and chapter");
-    if (chapters.length === 0) return setError("Please enter a valid chapter or chapter range (e.g., 1 or 1-3)");
+    if (!selectedBook || !chapter.trim()) return setError("Choose a book and a chapter.");
+    if (chapters.length === 0) return setError("Enter a chapter, such as 5, or a range, such as 1-3.");
     setIsLoading(true);
     try {
       setFetchedResults(await lookupSelection(selectedBook, chapter, verseRange, translation));
       setFormState("confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch verse. Try manual entry.");
+      setError(err instanceof Error ? err.message : "Could not load the verse. Type it in instead.");
     } finally {
       setIsLoading(false);
     }
@@ -234,8 +234,8 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualReference.trim()) return setError("Please enter a verse reference");
-    if (!manualText.trim()) return setError("Please enter the verse text");
+    if (!manualReference.trim()) return setError("Enter a reference.");
+    if (!manualText.trim()) return setError("Enter the verse text.");
     addCards([{ reference: manualReference.trim(), text: manualText }]);
   };
 
@@ -248,7 +248,7 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="surface p-6 sm:p-8">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-foreground font-serif tracking-[-0.01em]">Add New Verse</h2>
+        <h2 className="text-2xl font-semibold text-foreground font-serif tracking-[-0.01em]">Add a verse</h2>
         {onCancel && (
           <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full transition-colors hover:bg-muted hover:text-foreground text-muted-foreground" aria-label="Close">
             <X className="w-5 h-5" />
@@ -270,7 +270,7 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field label="Chapter(s)">
                 <input type="text" value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="1 or 1-3" className={inputClass} />
-                <p className="text-xs mt-1 text-muted-foreground">{selectedBookData ? `Range: 1-3 · Max ${selectedBookData.chapters}` : "Range: 1-3 or single: 5"}</p>
+                <p className="text-xs mt-1 text-muted-foreground">{selectedBookData ? `${selectedBookData.name} has ${selectedBookData.chapters} chapters` : "One chapter or a range"}</p>
               </Field>
               <Field label={<>Verse(s)<span className={`${hintClass} ml-1.5`}>(optional)</span></>}>
                 <input
@@ -281,7 +281,7 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
                   disabled={multiChapter}
                   className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
-                <p className="text-xs mt-1 text-muted-foreground">{multiChapter ? "Whole chapters imported" : "Blank = whole chapter"}</p>
+                <p className="text-xs mt-1 text-muted-foreground">{multiChapter ? "Adds whole chapters" : "Leave blank for the whole chapter"}</p>
               </Field>
             </div>
             <Field label="Translation">
@@ -289,11 +289,11 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
             </Field>
             <button onClick={handleFetchVerse} disabled={isLoading} className="btn-primary w-full py-3">
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {isLoading ? "Fetching..." : "Import from Bible"}
+              {isLoading ? "Loading…" : "Find verses"}
             </button>
             <div className="text-center">
               <button type="button" onClick={switchToManual} className="text-sm underline transition-colors text-muted-foreground hover:text-foreground">
-                Or enter verse manually
+                Or type a verse in yourself
               </button>
             </div>
           </motion.div>
@@ -317,17 +317,17 @@ export function AddVerseForm({ onAdd, onCancel }: AddVerseFormProps) {
             <Field label="Translation" htmlFor="manual-translation">
               <TranslationSelector translation={translation} onSelectTranslation={setTranslation} />
             </Field>
-            <Field label="Verse Text" htmlFor="manual-text">
+            <Field label="Verse text" htmlFor="manual-text">
               <textarea
                 id="manual-text"
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
-                placeholder="Enter the verse text..."
+                placeholder="Type or paste the verse"
                 rows={4}
                 className={`${inputClass} resize-none verse-text`}
               />
             </Field>
-            <FormActions label="Add Verse" onBack={() => setFormState("input")} />
+            <FormActions label="Add verse" onBack={() => setFormState("input")} />
           </motion.form>
         )}
       </AnimatePresence>

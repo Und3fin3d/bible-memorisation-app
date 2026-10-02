@@ -1,5 +1,5 @@
-import { isDue } from "./sm2";
-import type { Card } from "./sm2";
+import { isDue } from "./scheduling";
+import type { Card } from "./scheduling";
 import { parseVerseRange } from "./bibleData";
 
 interface ParsedReference {
