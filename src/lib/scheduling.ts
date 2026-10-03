@@ -104,9 +104,9 @@ export function getReviewStats(cards: Card[]) {
   };
 }
 
-export function getNextIntervalText(card: Card, quality: QualityRating, mode: ReviewMode = "flashcard", accuracy?: number): string {
+export function getNextIntervalText(card: Card, quality: QualityRating): string {
   const now = new Date();
-  const { nextReview } = calculateNextReview(card, adjustQuality(quality, mode, accuracy), now);
+  const { nextReview } = calculateNextReview(card, quality, now);
   const minutes = Math.round((nextReview.getTime() - now.getTime()) / 60000);
   if (minutes < 1) return "<1m";
   if (minutes < 60) return `${minutes}m`;
@@ -142,12 +142,6 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-function adjustQuality(quality: QualityRating, mode: ReviewMode, accuracy?: number): QualityRating {
-  if (mode === "flashcard" || accuracy === undefined) return quality;
-  if (accuracy < 50) return Rating.Again;
-  return accuracy < 80 && quality > Rating.Hard ? Rating.Hard : quality;
-}
-
 function recordReview(streak: StreakData): StreakData {
   const today = isoDay(new Date());
   if (streak.lastReviewDate === today) return { ...streak, totalReviews: streak.totalReviews + 1 };
@@ -160,18 +154,11 @@ function recordReview(streak: StreakData): StreakData {
   };
 }
 
-export function applyReview(
-  card: Card,
-  mode: ReviewMode,
-  quality: QualityRating,
-  accuracy: number | undefined,
-  streak: StreakData
-) {
-  const adjusted = adjustQuality(quality, mode, accuracy);
-  const updates = calculateNextReview(card, adjusted, new Date());
+export function applyReview(card: Card, mode: ReviewMode, quality: QualityRating, streak: StreakData) {
+  const updates = calculateNextReview(card, quality, new Date());
   let celebration: string | null = null;
   if (updates.repetitions === 5) celebration = `${card.reference} mastered!`;
-  else if (adjusted === Rating.Easy && updates.repetitions > 5) celebration = "Perfect recall!";
+  else if (quality === Rating.Easy && updates.repetitions > 5) celebration = "Perfect recall!";
   const modesUsed = card.modesUsed.includes(mode) ? card.modesUsed : [...card.modesUsed, mode];
   return { card: { ...card, ...updates, modesUsed }, streak: recordReview(streak), celebration };
 }

@@ -23,7 +23,7 @@ function useKeyboardShortcuts(handlers: Record<string, (e: KeyboardEvent) => voi
 
 type ReviewCardProps = {
   card: Card;
-  onRate: (quality: QualityRating, accuracy?: number) => void;
+  onRate: (quality: QualityRating) => void;
   onSkip?: () => void;
 };
 
@@ -39,8 +39,7 @@ type RatingBarProps = {
   card: Card;
   onRate: (quality: QualityRating) => void;
   showKeys?: boolean;
-  mode?: "typing" | "first-letter";
-  accuracy?: number;
+  answerShown?: boolean;
 };
 
 type AnswerShownNoticeProps = { className?: string };
@@ -79,9 +78,9 @@ function useCardReview<T extends object>(card: Card, onRate: ReviewCardProps["on
   const fresh = () => ({ cardId: card.id, ...create() });
   const [review, setReview] = useState(fresh);
   if (review.cardId !== card.id) setReview(fresh());
-  const rate = (quality: QualityRating, accuracy?: number) => {
+  const rate = (quality: QualityRating) => {
     setReview(fresh());
-    onRate(quality, accuracy);
+    onRate(quality);
   };
   return [review, setReview, rate] as const;
 }
@@ -143,20 +142,23 @@ function ReviewShell({ card, modeLabel, onSkip, skipHint = "Skip", children }: R
   );
 }
 
-function RatingBar({ card, onRate, showKeys = false, mode, accuracy }: RatingBarProps) {
+function RatingBar({ card, onRate, showKeys = false, answerShown = false }: RatingBarProps) {
   return (
     <div className="grid grid-cols-4 gap-2">
-      {ratings.map(({ quality, label, key }) => (
-        <button
-          key={quality}
-          onClick={() => onRate(quality)}
-          title={showKeys ? `Shortcut key: ${key}` : undefined}
-          className="flex flex-col items-center gap-0.5 px-2 py-3 rounded-xl border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors"
-        >
-          <span className="text-xs text-muted-foreground tabular-nums">{getNextIntervalText(card, quality, mode, accuracy)}</span>
-          <span className={`text-sm font-semibold ${quality === 1 ? "text-destructive" : "text-foreground"}`}>{label}</span>
-        </button>
-      ))}
+      {ratings.map(({ quality, label, key }) => {
+        const counted = answerShown ? 1 : quality;
+        return (
+          <button
+            key={quality}
+            onClick={() => onRate(counted)}
+            title={showKeys ? `Shortcut key: ${key}` : undefined}
+            className="flex flex-col items-center gap-0.5 px-2 py-3 rounded-xl border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors"
+          >
+            <span className="text-xs text-muted-foreground tabular-nums">{getNextIntervalText(card, counted)}</span>
+            <span className={`text-sm font-semibold ${quality === 1 ? "text-destructive" : "text-foreground"}`}>{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -278,7 +280,7 @@ export function TypingReviewCard({ card, onRate, onSkip }: ReviewCardProps) {
                 <p className="text-sm text-muted-foreground">accuracy</p>
               </div>
             )}
-            <RatingBar card={card} mode="typing" accuracy={showAnswer ? 0 : accuracy} onRate={(quality) => rate(showAnswer ? 1 : quality, accuracy)} />
+            <RatingBar card={card} answerShown={showAnswer} onRate={rate} />
           </div>
         )}
       </div>
@@ -406,7 +408,7 @@ export function FirstLetterReviewCard({ card, onRate, onSkip }: ReviewCardProps)
               <p className="text-sm text-muted-foreground mt-1">{percent}% correct</p>
             </div>
             {showAnswer && <AnswerShownNotice className="border-t border-border" />}
-            <RatingBar card={card} mode="first-letter" accuracy={showAnswer ? 0 : percent} onRate={(quality) => rate(showAnswer ? 1 : quality, percent)} />
+            <RatingBar card={card} answerShown={showAnswer} onRate={rate} />
           </div>
         )}
       </div>

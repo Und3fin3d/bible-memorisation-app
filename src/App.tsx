@@ -85,9 +85,9 @@ function App() {
     setCards((prev) => prev.map((c) => (c.id === id ? update(c) : c)));
   };
 
-  const handleRateCard = (quality: QualityRating, accuracy?: number) => {
+  const handleRateCard = (quality: QualityRating) => {
     if (!currentCard || !currentReviewMode) return;
-    const outcome = applyReview(currentCard, currentReviewMode, quality, accuracy, streak);
+    const outcome = applyReview(currentCard, currentReviewMode, quality, streak);
     replaceCard(currentCard.id, () => outcome.card);
     setStreak(outcome.streak);
     saveStreak(outcome.streak);
