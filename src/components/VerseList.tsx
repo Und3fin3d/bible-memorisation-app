@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Collapsible, Tabs } from "radix-ui";
-import { getReviewStats, type Card, type ReviewMode } from "../lib/scheduling";
+import { formatReviewDate, getReviewStats, type Card, type ReviewMode } from "../lib/scheduling";
 import type { CustomGroup } from "../lib/storage";
 import { getOrganizedGroups, isGroupDue, type VerseGroup } from "../lib/verseGroups";
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from "./ui";
@@ -21,17 +21,6 @@ const plainIconClass = "p-2 rounded-lg transition-colors text-muted-foreground h
 const dangerIconClass = "rounded-lg transition-colors text-muted-foreground hover:text-destructive hover:bg-destructive/10";
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
-function formatDate(date: Date) {
-  const d = new Date(date);
-  const days = Math.floor((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return "Due now";
-  if (days === 0) return "Today";
-  if (days === 1) return "Tomorrow";
-  if (days < 7) return `In ${days} days`;
-  if (days < 30) return `In ${Math.floor(days / 7)} weeks`;
-  return d.toLocaleDateString();
-}
 
 function getStatusBadge(card: Card) {
   if (new Date(card.nextReview) <= new Date()) return { text: "Due", className: "text-foreground" };
@@ -74,9 +63,9 @@ function CardItem({ card, onDelete }: CardItemProps) {
         </div>
         <p className="text-sm line-clamp-2 mb-1 verse-text text-muted-foreground">{card.text}</p>
         <p className="flex items-center gap-x-1.5 text-xs flex-wrap text-muted-foreground tabular-nums">
-          <span>{formatDate(card.nextReview)}</span>
+          <span>{formatReviewDate(card.nextReview)}</span>
           <span aria-hidden="true">·</span>
-          <span>{plural(card.repetitions, "review")}</span>
+          <span>{plural(card.schedule.reps, "review")}</span>
           <span aria-hidden="true">·</span>
           <span>{card.translation}</span>
           {card.modesUsed.map((mode) => (
