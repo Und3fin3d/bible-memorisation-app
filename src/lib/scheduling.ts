@@ -31,6 +31,18 @@ export const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
 
 export const isDue = (card: Card, now = new Date()) => card.nextReview <= now;
 
+const calendarDay = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
+
+export function formatReviewDate(date: Date, now = new Date()): string {
+  if (date <= now) return "Due now";
+  const days = calendarDay(date) - calendarDay(now);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days < 7) return `In ${days} days`;
+  if (days < 30) return `In ${Math.floor(days / 7)} week${days < 14 ? "" : "s"}`;
+  return date.toLocaleDateString();
+}
+
 function migrateSchedule(card: StoredCard): Schedule {
   const schedule = createEmptyCard(card.nextReview);
   if (!card.lastReviewed) return schedule;

@@ -126,7 +126,7 @@ function ReviewShell({ card, modeLabel, onSkip, skipHint = "Skip", children }: R
           <span className="text-xs font-semibold text-muted-foreground tracking-wide">{card.translation}</span>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {modeLabel && <span>{modeLabel}</span>}
-            {card.repetitions > 0 && <span>Reviewed {card.repetitions}×</span>}
+            {card.schedule.reps > 0 && <span>Reviewed {card.schedule.reps}×</span>}
             {onSkip && (
               <button onClick={onSkip} className="flex items-center gap-1 font-medium transition-colors hover:text-foreground" title={skipHint}>
                 <SkipForward className="w-3.5 h-3.5" />
