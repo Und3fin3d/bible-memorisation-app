@@ -39,10 +39,7 @@ export function formatReviewDate(date: Date, now = new Date()): string {
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   if (days < 7) return `In ${days} days`;
-  if (days < 30) {
-    const weeks = Math.floor(days / 7);
-    return `In ${weeks} week${weeks === 1 ? "" : "s"}`;
-  }
+  if (days < 30) return `In ${Math.floor(days / 7)} week${days < 14 ? "" : "s"}`;
   return date.toLocaleDateString();
 }
 
